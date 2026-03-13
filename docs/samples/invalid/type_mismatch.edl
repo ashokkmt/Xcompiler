@@ -1,0 +1,2 @@
+let is_open: bool = true;
+let total: int = is_open;

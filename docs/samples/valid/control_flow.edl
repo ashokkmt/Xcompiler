@@ -1,0 +1,11 @@
+let count: int = 0;
+let limit: int = 3;
+
+while (count < limit) {
+    if (count == 1) {
+        print("middle");
+    } else {
+        print(count);
+    }
+    count = count + 1;
+}
