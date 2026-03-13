@@ -7,7 +7,7 @@ from compiler.lexer import Lexer, LexerError, Token
 from compiler.parser import Parser, ParserError, Program
 from compiler.semantic import SemanticAnalyzer, SemanticError, SymbolEntry
 
-PhaseName = Literal["lexical", "syntax", "semantic"]
+PhaseName = Literal["lexical", "syntax", "semantic", "runtime"]
 Severity = Literal["error", "warning", "hint"]
 
 
@@ -94,7 +94,7 @@ class ErrorIntelligenceModule:
 
     def _sort_key(self, diagnostic: Diagnostic) -> Tuple[int, int, int]:
         # Use phase order as a stable tie-breaker for same source location.
-        phase_order = {"lexical": 0, "syntax": 1, "semantic": 2}
+        phase_order = {"lexical": 0, "syntax": 1, "semantic": 2, "runtime": 3}
         line = diagnostic.line if diagnostic.line > 0 else 10**9
         col = diagnostic.column if diagnostic.column > 0 else 10**9
         return (line, col, phase_order[diagnostic.phase])

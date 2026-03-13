@@ -14,6 +14,7 @@ def test_compile_source_returns_all_sections_for_valid_code():
     assert len(result.ast.statements) >= 1
     assert len(result.symbol_table) >= 1
     assert len(result.tac) >= 1
+    assert result.program_output == ["1"]
     assert result.diagnostics == []
 
 
@@ -25,5 +26,6 @@ def test_compile_source_returns_diagnostics_for_invalid_code():
     result = compile_source(source)
 
     assert len(result.tokens) > 0
+    assert isinstance(result.program_output, list)
     assert len(result.diagnostics) >= 1
     assert any(d.phase in {"syntax", "semantic"} for d in result.diagnostics)

@@ -7,6 +7,7 @@ from compiler.errors import Diagnostic, ErrorIntelligenceModule
 from compiler.lexer import Token
 from compiler.parser import Program
 from compiler.semantic import SymbolEntry
+from compiler.tac_interpreter import TACInterpreter
 from compiler.tac_generator import TACGenerator, TACInstruction
 
 
@@ -18,6 +19,7 @@ class CompileOutput:
     ast: Program
     symbol_table: List[SymbolEntry]
     tac: List[TACInstruction]
+    program_output: List[str]
     diagnostics: List[Diagnostic]
 
 
@@ -26,11 +28,26 @@ def compile_source(source: str) -> CompileOutput:
     error_module = ErrorIntelligenceModule()
     analysis = error_module.analyze_source(source)
     tac = TACGenerator().generate(analysis.ast)
+    runtime = TACInterpreter().execute(tac)
+
+    diagnostics = list(analysis.diagnostics)
+    if runtime.runtime_error is not None:
+        diagnostics.append(
+            Diagnostic(
+                phase="runtime",
+                severity="error",
+                message=runtime.runtime_error,
+                suggestion="Review TAC operations and runtime values to fix execution errors.",
+                line=0,
+                column=0,
+            )
+        )
 
     return CompileOutput(
         tokens=analysis.tokens,
         ast=analysis.ast,
         symbol_table=analysis.symbol_table,
         tac=tac,
-        diagnostics=analysis.diagnostics,
+        program_output=runtime.output,
+        diagnostics=diagnostics,
     )

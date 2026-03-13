@@ -19,6 +19,7 @@ def test_compile_source_contract_is_consistent_on_valid_program():
     assert issues == []
     assert output.diagnostics == []
     assert len(output.tac) > 0
+    assert output.program_output == ["1"]
 
 
 def test_compile_file_invalid_program_still_returns_partial_outputs():
@@ -29,6 +30,7 @@ def test_compile_file_invalid_program_still_returns_partial_outputs():
 
     assert issues == []
     assert len(output.tokens) > 0
+    assert isinstance(output.program_output, list)
     assert len(output.diagnostics) > 0
 
 

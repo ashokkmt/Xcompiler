@@ -43,6 +43,8 @@ def validate_output_contract(output: CompileOutput) -> List[str]:
         issues.append("tokens must be a list")
     if not isinstance(output.tac, list):
         issues.append("tac must be a list")
+    if not isinstance(output.program_output, list):
+        issues.append("program_output must be a list")
     if not isinstance(output.diagnostics, list):
         issues.append("diagnostics must be a list")
     if output.ast is None:

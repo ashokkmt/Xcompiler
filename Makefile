@@ -1,9 +1,9 @@
 # Simple task runner for the CompileX project.
 
-PYTHON ?= python
+PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; elif command -v python3 >/dev/null 2>&1; then echo python3; else echo python; fi)
 APP_ENTRY ?= gui/interface.py
 
-.PHONY: run gui test test-lexer test-parser test-semantic test-tac test-errors test-pipeline test-integration clean help
+.PHONY: run gui test test-lexer test-parser test-semantic test-tac test-interpreter test-errors test-pipeline test-integration clean help
 
 run: gui
 
@@ -37,6 +37,10 @@ test-semantic:
 test-tac:
 	$(PYTHON) -m pytest -q tests/test_tac_generator.py
 
+# Run TAC interpreter tests (runtime execution phase).
+test-interpreter:
+	$(PYTHON) -m pytest -q tests/test_tac_interpreter.py
+
 # Run error intelligence module tests only (Phase 6).
 test-errors:
 	$(PYTHON) -m pytest -q tests/test_errors.py
@@ -64,6 +68,7 @@ help:
 	@echo "  make test-parser - Run parser tests only"
 	@echo "  make test-semantic - Run semantic analyzer tests only"
 	@echo "  make test-tac    - Run TAC generator tests only"
+	@echo "  make test-interpreter - Run TAC interpreter tests only"
 	@echo "  make test-errors - Run error module tests only"
 	@echo "  make test-pipeline - Run pipeline facade tests only"
 	@echo "  make test-integration - Run end-to-end integration tests"

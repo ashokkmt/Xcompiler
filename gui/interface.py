@@ -63,7 +63,7 @@ class CompilerGUI:
         notebook = ttk.Notebook(outputs_frame)
         notebook.pack(fill=tk.BOTH, expand=True)
 
-        for name in ["Tokens", "AST", "Symbol Table", "TAC", "Errors"]:
+        for name in ["Tokens", "AST", "Symbol Table", "TAC", "Output", "Errors"]:
             tab = ttk.Frame(notebook)
             notebook.add(tab, text=name)
             widget = tk.Text(tab, wrap=tk.NONE)
@@ -95,6 +95,7 @@ class CompilerGUI:
         self._write_output("AST", self._format_ast(result.ast))
         self._write_output("Symbol Table", self._format_symbol_table(result.symbol_table))
         self._write_output("TAC", self._format_tac(result.tac))
+        self._write_output("Output", self._format_program_output(result.program_output))
         self._write_output("Errors", self._format_diagnostics(result.diagnostics))
 
     def _write_output(self, section: str, text: str) -> None:
@@ -146,6 +147,11 @@ class CompilerGUI:
             lines.append(f"Suggestion: {diag.suggestion}")
             lines.append("")
         return "\n".join(lines).rstrip()
+
+    def _format_program_output(self, output_lines) -> str:
+        if not output_lines:
+            return "No runtime output produced."
+        return "\n".join(output_lines)
 
 
 def main() -> None:
