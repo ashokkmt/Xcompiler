@@ -3,7 +3,7 @@
 PYTHON ?= python
 APP_ENTRY ?= gui/interface.py
 
-.PHONY: run gui test test-lexer test-parser test-semantic test-tac clean help
+.PHONY: run gui test test-lexer test-parser test-semantic test-tac test-errors clean help
 
 run: gui
 
@@ -37,6 +37,10 @@ test-semantic:
 test-tac:
 	$(PYTHON) -m pytest -q tests/test_tac_generator.py
 
+# Run error intelligence module tests only (Phase 6).
+test-errors:
+	$(PYTHON) -m pytest -q tests/test_errors.py
+
 # Remove temporary Python cache files.
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
@@ -52,5 +56,6 @@ help:
 	@echo "  make test-parser - Run parser tests only"
 	@echo "  make test-semantic - Run semantic analyzer tests only"
 	@echo "  make test-tac    - Run TAC generator tests only"
+	@echo "  make test-errors - Run error module tests only"
 	@echo "  make clean       - Remove __pycache__ and *.pyc files"
 	@echo "  make help        - Show this help message"
