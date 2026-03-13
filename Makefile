@@ -10,7 +10,7 @@ run: gui
 # Launch the GUI entrypoint when available.
 gui:
 	@if [ -f "$(APP_ENTRY)" ]; then \
-		$(PYTHON) "$(APP_ENTRY)"; \
+		$(PYTHON) -m gui.interface; \
 	else \
 		echo "GUI entrypoint not found: $(APP_ENTRY)"; \
 		echo "Implement Phase 7 (GUI Development) to enable this command."; \
