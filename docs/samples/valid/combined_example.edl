@@ -1,0 +1,10 @@
+let arr: array = [1, 3, 5];
+let data: dict = {"k": 4};
+let base: int = arr[1] + data["k"];
+let result: int = (base * 2) - 1;
+print(result);
+if (result > 10) {
+    print(arr[2] + data["k"]);
+} else {
+    print(0);
+}

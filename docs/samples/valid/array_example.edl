@@ -1,0 +1,5 @@
+let arr: array = [2, 4, 6, 8];
+print(arr[0]);
+print(arr[2]);
+let idx: int = 1;
+print(arr[idx]);

@@ -1,0 +1,3 @@
+// Expected error: missing closing ')' in print statement.
+let x: int = 4;
+print((x + 1);

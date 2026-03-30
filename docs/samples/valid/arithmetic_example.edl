@@ -1,0 +1,10 @@
+let a: int = 10;
+let b: int = 3;
+let sum: int = a + b;
+let diff: int = a - b;
+let prod: int = a * b;
+let ratio: float = a / b;
+print(sum);
+print(diff);
+print(prod);
+print(ratio);

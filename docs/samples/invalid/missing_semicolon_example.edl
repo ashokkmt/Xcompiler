@@ -1,0 +1,3 @@
+// Expected error: missing semicolon after declaration.
+let x: int = 10
+print(x);

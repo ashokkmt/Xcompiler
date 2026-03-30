@@ -1,0 +1,3 @@
+// Expected error: arithmetic operator '+' requires numeric operands.
+let x: int = true + 1;
+print(x);

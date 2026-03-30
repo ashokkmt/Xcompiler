@@ -1,0 +1,3 @@
+// Expected error: dictionary literal entry is missing ':' between key and value.
+let data: dict = {"a" 10, "b": 20};
+print(data["a"]);

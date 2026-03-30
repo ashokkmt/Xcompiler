@@ -1,0 +1,3 @@
+// Expected error: use of undeclared variable y.
+let x: int = y + 1;
+print(x);
