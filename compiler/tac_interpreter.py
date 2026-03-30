@@ -64,6 +64,65 @@ class TACInterpreter:
                 pc += 1
                 continue
 
+            if op == "ARRAY_NEW":
+                if ins.result is None:
+                    return ExecutionResult(output, memory, "ARRAY_NEW instruction missing result target")
+                memory[ins.result] = []
+                pc += 1
+                continue
+
+            if op == "ARRAY_APPEND":
+                if ins.result is None:
+                    return ExecutionResult(output, memory, "ARRAY_APPEND instruction missing result target")
+                container_value = memory.get(ins.result)
+                if not isinstance(container_value, list):
+                    return ExecutionResult(output, memory, "ARRAY_APPEND target is not an array")
+                value = self._resolve_operand(ins.arg2, memory)
+                if isinstance(value, RuntimeError):
+                    return ExecutionResult(output, memory, str(value))
+                container_value.append(value)
+                pc += 1
+                continue
+
+            if op == "DICT_NEW":
+                if ins.result is None:
+                    return ExecutionResult(output, memory, "DICT_NEW instruction missing result target")
+                memory[ins.result] = {}
+                pc += 1
+                continue
+
+            if op == "DICT_SET":
+                if ins.result is None:
+                    return ExecutionResult(output, memory, "DICT_SET instruction missing result target")
+                container_value = memory.get(ins.result)
+                if not isinstance(container_value, dict):
+                    return ExecutionResult(output, memory, "DICT_SET target is not a dictionary")
+                key = self._resolve_operand(ins.arg1, memory)
+                value = self._resolve_operand(ins.arg2, memory)
+                if isinstance(key, RuntimeError):
+                    return ExecutionResult(output, memory, str(key))
+                if isinstance(value, RuntimeError):
+                    return ExecutionResult(output, memory, str(value))
+                container_value[key] = value
+                pc += 1
+                continue
+
+            if op == "INDEX_GET":
+                collection = self._resolve_operand(ins.arg1, memory)
+                index = self._resolve_operand(ins.arg2, memory)
+                if isinstance(collection, RuntimeError):
+                    return ExecutionResult(output, memory, str(collection))
+                if isinstance(index, RuntimeError):
+                    return ExecutionResult(output, memory, str(index))
+                if ins.result is None:
+                    return ExecutionResult(output, memory, "INDEX_GET instruction missing result target")
+                try:
+                    memory[ins.result] = collection[index]
+                except Exception as exc:  # pragma: no cover - defensive runtime safety
+                    return ExecutionResult(output, memory, f"Runtime error in INDEX_GET: {exc}")
+                pc += 1
+                continue
+
             if op == "PRINT":
                 value = self._resolve_operand(ins.arg1, memory)
                 if isinstance(value, RuntimeError):

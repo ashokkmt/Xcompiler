@@ -4,12 +4,15 @@ from dataclasses import dataclass
 from typing import Dict, List, Literal, Tuple
 
 from compiler.parser import (
+    ArrayLiteralExpr,
     AssignmentStmt,
     BinaryExpr,
     BlockStmt,
     DeclarationStmt,
+    DictLiteralExpr,
     GroupingExpr,
     IdentifierExpr,
+    IndexExpr,
     IfStmt,
     LiteralExpr,
     PrintStmt,
@@ -19,7 +22,7 @@ from compiler.parser import (
     WhileStmt,
 )
 
-TypeName = Literal["int", "float", "bool", "string", "error"]
+TypeName = Literal["int", "float", "bool", "string", "array", "dict", "any", "error"]
 
 
 @dataclass(frozen=True)
@@ -146,6 +149,31 @@ class SemanticAnalyzer:
         if isinstance(expr, GroupingExpr):
             return self._infer_expression_type(expr.expression)
 
+        if isinstance(expr, ArrayLiteralExpr):
+            for element in expr.elements:
+                self._infer_expression_type(element)
+            return "array"
+
+        if isinstance(expr, DictLiteralExpr):
+            for entry in expr.entries:
+                self._infer_expression_type(entry.key)
+                self._infer_expression_type(entry.value)
+            return "dict"
+
+        if isinstance(expr, IndexExpr):
+            target_type = self._infer_expression_type(expr.target)
+            index_type = self._infer_expression_type(expr.index)
+            if target_type == "array":
+                if index_type not in {"int", "error"}:
+                    self._error("Array indexing requires int index")
+                    return "error"
+                return "any"
+            if target_type == "dict":
+                return "any"
+            if target_type != "error":
+                self._error("Indexing requires array or dict target")
+            return "error"
+
         if isinstance(expr, UnaryExpr):
             operand_type = self._infer_expression_type(expr.operand)
             if expr.operator == "!":
@@ -223,6 +251,8 @@ class SemanticAnalyzer:
 
     def _is_assignable(self, target: str, source: TypeName) -> bool:
         if source == "error":
+            return True
+        if source == "any":
             return True
         if target == source:
             return True

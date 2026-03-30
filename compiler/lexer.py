@@ -16,11 +16,13 @@ KEYWORDS = {
     "float",
     "bool",
     "string",
+    "array",
+    "dict",
 }
 
 TWO_CHAR_OPERATORS = {"==", "!=", "<=", ">=", "&&", "||"}
 ONE_CHAR_OPERATORS = {"+", "-", "*", "/", "%", "=", "<", ">", "!"}
-SYMBOLS = {"(", ")", "{", "}", ";", ":"}
+SYMBOLS = {"(", ")", "{", "}", "[", "]", ";", ":", ","}
 
 
 @dataclass(frozen=True)

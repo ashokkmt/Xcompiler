@@ -4,12 +4,15 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from compiler.parser import (
+    ArrayLiteralExpr,
     AssignmentStmt,
     BinaryExpr,
     BlockStmt,
     DeclarationStmt,
+    DictLiteralExpr,
     GroupingExpr,
     IdentifierExpr,
+    IndexExpr,
     IfStmt,
     LiteralExpr,
     PrintStmt,
@@ -121,6 +124,30 @@ class TACGenerator:
 
         if isinstance(expression, GroupingExpr):
             return self._emit_expression(expression.expression)
+
+        if isinstance(expression, ArrayLiteralExpr):
+            target = self._new_temp()
+            self.instructions.append(TACInstruction("ARRAY_NEW", None, None, target))
+            for element in expression.elements:
+                value = self._emit_expression(element)
+                self.instructions.append(TACInstruction("ARRAY_APPEND", target, value, target))
+            return target
+
+        if isinstance(expression, DictLiteralExpr):
+            target = self._new_temp()
+            self.instructions.append(TACInstruction("DICT_NEW", None, None, target))
+            for entry in expression.entries:
+                key = self._emit_expression(entry.key)
+                value = self._emit_expression(entry.value)
+                self.instructions.append(TACInstruction("DICT_SET", key, value, target))
+            return target
+
+        if isinstance(expression, IndexExpr):
+            target = self._new_temp()
+            collection = self._emit_expression(expression.target)
+            index = self._emit_expression(expression.index)
+            self.instructions.append(TACInstruction("INDEX_GET", collection, index, target))
+            return target
 
         if isinstance(expression, UnaryExpr):
             operand = self._emit_expression(expression.operand)

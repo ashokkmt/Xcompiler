@@ -67,3 +67,22 @@ def test_generates_tac_for_assignment_and_unary_ops():
     assert "NOT" in ops
     assert ops.count("ASSIGN") >= 2
     assert "PRINT" in ops
+
+
+def test_generates_tac_for_array_dict_and_index_access():
+    source = '''
+    let arr: array = [1, 2, 3];
+    let data: dict = {"a": 10, "b": 20};
+    print(arr[1]);
+    print(data["a"]);
+    '''
+    tac = _generate_tac(source)
+
+    ops = [i.op for i in tac]
+
+    assert "ARRAY_NEW" in ops
+    assert "ARRAY_APPEND" in ops
+    assert "DICT_NEW" in ops
+    assert "DICT_SET" in ops
+    assert "INDEX_GET" in ops
+    assert ops.count("PRINT") == 2

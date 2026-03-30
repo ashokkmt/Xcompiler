@@ -68,3 +68,21 @@ def test_suggestion_engine_handles_common_patterns():
     suggestions = [d.suggestion for d in diagnostics]
     assert any("parentheses" in s.lower() for s in suggestions)
     assert any("boolean expression" in s.lower() for s in suggestions)
+
+
+def test_collect_compacts_adjacent_duplicate_statement_recovery_errors():
+    module = ErrorIntelligenceModule()
+
+    diagnostics = module.collect(
+        lexer_errors=[],
+        parser_errors=[
+            ParserError("Expected ':' between dictionary key and value", 2, 23),
+            ParserError("Expected a statement (let, assignment, print, if, while, or block)", 2, 34),
+            ParserError("Expected a statement (let, assignment, print, if, while, or block)", 2, 35),
+        ],
+        semantic_errors=[],
+    )
+
+    assert len(diagnostics) == 2
+    assert diagnostics[0].message == "Expected ':' between dictionary key and value"
+    assert diagnostics[1].message == "Expected a statement (let, assignment, print, if, while, or block)"

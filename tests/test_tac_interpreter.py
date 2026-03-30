@@ -41,3 +41,16 @@ def test_reports_runtime_error_for_division_by_zero():
 
     assert result.runtime_error is not None
     assert "division by zero" in result.runtime_error
+
+
+def test_executes_array_and_dictionary_index_prints():
+    source = '''
+    let arr: array = [1, 2, 3];
+    let data: dict = {"a": 10, "b": 20};
+    print(arr[1]);
+    print(data["a"]);
+    '''
+    result = _execute(source)
+
+    assert result.runtime_error is None
+    assert result.output == ["2", "10"]

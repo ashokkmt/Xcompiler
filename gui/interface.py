@@ -24,6 +24,19 @@ class CompilerGUI:
 
         self._build_layout()
 
+    def _discover_samples(self) -> list[str]:
+        samples_root = Path("docs/samples")
+        entries: list[str] = ["custom"]
+
+        for group in ("valid", "invalid"):
+            group_dir = samples_root / group
+            if not group_dir.exists():
+                continue
+            for sample_file in sorted(group_dir.glob("*.edl")):
+                entries.append(f"{group}/{sample_file.stem}")
+
+        return entries
+
     def _build_layout(self) -> None:
         top_bar = ttk.Frame(self.root, padding=8)
         top_bar.pack(fill=tk.X)
@@ -34,8 +47,8 @@ class CompilerGUI:
             top_bar,
             textvariable=self.sample_var,
             state="readonly",
-            width=28,
-            values=["custom", "valid/basic_declarations", "valid/control_flow", "invalid/missing_semicolon"],
+            width=36,
+            values=self._discover_samples(),
         )
         sample_box.pack(side=tk.LEFT, padx=(6, 8))
         sample_box.bind("<<ComboboxSelected>>", self._on_sample_selected)

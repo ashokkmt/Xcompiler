@@ -81,7 +81,29 @@ class ErrorIntelligenceModule:
             )
 
         diagnostics.sort(key=self._sort_key)
-        return diagnostics
+        return self._compact_diagnostics(diagnostics)
+
+    def _compact_diagnostics(self, diagnostics: List[Diagnostic]) -> List[Diagnostic]:
+        """Remove near-duplicate recovery diagnostics to reduce noise."""
+        compacted: List[Diagnostic] = []
+
+        for diagnostic in diagnostics:
+            if (
+                compacted
+                and diagnostic.phase == "syntax"
+                and diagnostic.message == "Expected a statement (let, assignment, print, if, while, or block)"
+            ):
+                previous = compacted[-1]
+                if (
+                    previous.phase == diagnostic.phase
+                    and previous.message == diagnostic.message
+                    and previous.line == diagnostic.line
+                    and abs(previous.column - diagnostic.column) <= 1
+                ):
+                    continue
+            compacted.append(diagnostic)
+
+        return compacted
 
     def analyze_source(self, source: str) -> AnalysisResult:
         """Run lexer, parser, and semantic analysis with basic recovery behavior."""

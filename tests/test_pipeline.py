@@ -29,3 +29,18 @@ def test_compile_source_returns_diagnostics_for_invalid_code():
     assert isinstance(result.program_output, list)
     assert len(result.diagnostics) >= 1
     assert any(d.phase in {"syntax", "semantic"} for d in result.diagnostics)
+
+
+def test_compile_source_stops_after_syntax_errors_for_invalid_dict_literal():
+    source = '''
+    let data: dict = {"a" 10, "b": 20};
+    print(data["a"]);
+    '''
+
+    result = compile_source(source)
+
+    assert len(result.diagnostics) >= 1
+    assert any(d.phase == "syntax" for d in result.diagnostics)
+    assert all(d.phase in {"lexical", "syntax"} for d in result.diagnostics)
+    assert result.tac == []
+    assert result.program_output == []

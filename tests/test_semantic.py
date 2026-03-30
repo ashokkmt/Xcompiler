@@ -90,3 +90,19 @@ def test_reports_non_bool_condition():
 
     assert len(errors) >= 1
     assert any("While condition must be of type bool" in e.message for e in errors)
+
+
+def test_valid_array_and_dictionary_indexing_has_no_semantic_errors():
+    source = '''
+    let arr: array = [1, 2, 3];
+    let data: dict = {"a": 10, "b": 20};
+    print(arr[1]);
+    print(data["a"]);
+    '''
+
+    symbols, errors = _analyze(source)
+
+    assert errors == []
+    names = [s.name for s in symbols]
+    assert "arr" in names
+    assert "data" in names

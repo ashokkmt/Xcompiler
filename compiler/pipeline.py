@@ -27,10 +27,23 @@ def compile_source(source: str) -> CompileOutput:
     """Run all currently implemented compiler-core phases for a source string."""
     error_module = ErrorIntelligenceModule()
     analysis = error_module.analyze_source(source)
+    diagnostics = list(analysis.diagnostics)
+    has_frontend_errors = any(d.phase in {"lexical", "syntax"} for d in diagnostics)
+    if has_frontend_errors:
+        # Prevent noisy cascade diagnostics when parsing/tokenization already failed.
+        filtered_diagnostics = [d for d in diagnostics if d.phase in {"lexical", "syntax"}]
+        return CompileOutput(
+            tokens=analysis.tokens,
+            ast=analysis.ast,
+            symbol_table=analysis.symbol_table,
+            tac=[],
+            program_output=[],
+            diagnostics=filtered_diagnostics,
+        )
+
     tac = TACGenerator().generate(analysis.ast)
     runtime = TACInterpreter().execute(tac)
 
-    diagnostics = list(analysis.diagnostics)
     if runtime.runtime_error is not None:
         diagnostics.append(
             Diagnostic(

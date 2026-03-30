@@ -2,9 +2,12 @@
 
 from compiler.lexer import Lexer
 from compiler.parser import (
+    ArrayLiteralExpr,
     AssignmentStmt,
     BinaryExpr,
     DeclarationStmt,
+    DictLiteralExpr,
+    IndexExpr,
     IfStmt,
     Parser,
     PrintStmt,
@@ -80,3 +83,42 @@ def test_reports_missing_if_parenthesis():
 
     assert len(errors) >= 1
     assert any("Expected ')' after if condition" in err.message for err in errors)
+
+
+def test_parse_array_and_dictionary_index_expressions():
+    source = '''
+    let arr: array = [1, 2, 3];
+    let data: dict = {"a": 10, "b": 20};
+    print(arr[1]);
+    print(data["a"]);
+    '''
+
+    program, errors = _parse(source)
+
+    assert errors == []
+    arr_decl = program.statements[0]
+    data_decl = program.statements[1]
+    first_print = program.statements[2]
+    second_print = program.statements[3]
+
+    assert isinstance(arr_decl, DeclarationStmt)
+    assert isinstance(arr_decl.initializer, ArrayLiteralExpr)
+    assert isinstance(data_decl, DeclarationStmt)
+    assert isinstance(data_decl.initializer, DictLiteralExpr)
+    assert isinstance(first_print, PrintStmt)
+    assert isinstance(first_print.expression, IndexExpr)
+    assert isinstance(second_print, PrintStmt)
+    assert isinstance(second_print.expression, IndexExpr)
+
+
+def test_missing_dict_colon_reports_error_without_hanging():
+    source = 'let data: dict = {"a" 10, "b": 20};\nprint(data["a"]);'
+    tokens, lex_errors = Lexer(source).tokenize()
+    assert lex_errors == []
+
+    program, errors = Parser(tokens).parse()
+
+    assert len(errors) >= 1
+    assert any("Expected ':' between dictionary key and value" in err.message for err in errors)
+    # Parser should recover and continue instead of looping forever.
+    assert len(program.statements) >= 1

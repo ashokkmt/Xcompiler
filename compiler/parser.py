@@ -84,8 +84,39 @@ class GroupingExpr:
     expression: "Expression"
 
 
+@dataclass(frozen=True)
+class ArrayLiteralExpr:
+    elements: List["Expression"]
+
+
+@dataclass(frozen=True)
+class DictEntryExpr:
+    key: "Expression"
+    value: "Expression"
+
+
+@dataclass(frozen=True)
+class DictLiteralExpr:
+    entries: List[DictEntryExpr]
+
+
+@dataclass(frozen=True)
+class IndexExpr:
+    target: "Expression"
+    index: "Expression"
+
+
 Statement = Union[BlockStmt, DeclarationStmt, AssignmentStmt, PrintStmt, IfStmt, WhileStmt]
-Expression = Union[BinaryExpr, UnaryExpr, LiteralExpr, IdentifierExpr, GroupingExpr]
+Expression = Union[
+    BinaryExpr,
+    UnaryExpr,
+    LiteralExpr,
+    IdentifierExpr,
+    GroupingExpr,
+    ArrayLiteralExpr,
+    DictLiteralExpr,
+    IndexExpr,
+]
 
 
 class _ParseAbort(Exception):
@@ -95,7 +126,7 @@ class _ParseAbort(Exception):
 class Parser:
     """Builds an AST from lexer tokens and collects syntax diagnostics."""
 
-    TYPE_KEYWORDS = {"int", "float", "bool", "string"}
+    TYPE_KEYWORDS = {"int", "float", "bool", "string", "array", "dict"}
     STATEMENT_START_KEYWORDS = {"let", "print", "if", "while"}
 
     def __init__(self, tokens: List[Token]) -> None:
@@ -123,10 +154,14 @@ class Parser:
         return Program(statements), self.errors
 
     def _parse_statement_with_recovery(self) -> Optional[Statement]:
+        start_index = self.current
         try:
             return self._parse_statement()
         except _ParseAbort:
             self._synchronize()
+            # Guarantee forward progress so malformed input cannot trap recovery in a loop.
+            if self.current == start_index and not self._is_at_end():
+                self._advance()
             return None
 
     def _parse_statement(self) -> Statement:
@@ -266,7 +301,15 @@ class Parser:
             operator = self._previous().lexeme
             operand = self._parse_unary()
             return UnaryExpr(operator, operand)
-        return self._parse_primary()
+        return self._parse_postfix()
+
+    def _parse_postfix(self) -> Expression:
+        expr = self._parse_primary()
+        while self._match_symbol("["):
+            index = self._parse_expression()
+            self._consume_symbol("]", "Expected ']' after index expression")
+            expr = IndexExpr(expr, index)
+        return expr
 
     def _parse_primary(self) -> Expression:
         if self._match("INT_LITERAL"):
@@ -283,14 +326,46 @@ class Parser:
             expr = self._parse_expression()
             self._consume_symbol(")", "Expected ')' after grouped expression")
             return GroupingExpr(expr)
+        if self._match_symbol("["):
+            return self._parse_array_literal()
+        if self._match_symbol("{"):
+            return self._parse_dict_literal()
 
         token = self._peek()
         self._error(token, "Expected expression")
         raise _ParseAbort()
 
+    def _parse_array_literal(self) -> ArrayLiteralExpr:
+        elements: List[Expression] = []
+
+        if not self._check_symbol("]"):
+            elements.append(self._parse_expression())
+            while self._match_symbol(","):
+                elements.append(self._parse_expression())
+
+        self._consume_symbol("]", "Expected ']' after array literal")
+        return ArrayLiteralExpr(elements)
+
+    def _parse_dict_literal(self) -> DictLiteralExpr:
+        entries: List[DictEntryExpr] = []
+
+        if not self._check_symbol("}"):
+            entries.append(self._parse_dict_entry())
+            while self._match_symbol(","):
+                entries.append(self._parse_dict_entry())
+
+        self._consume_symbol("}", "Expected '}' after dictionary literal")
+        return DictLiteralExpr(entries)
+
+    def _parse_dict_entry(self) -> DictEntryExpr:
+        key_expr = self._parse_expression()
+        self._consume_symbol(":", "Expected ':' between dictionary key and value")
+        value_expr = self._parse_expression()
+        return DictEntryExpr(key_expr, value_expr)
+
     def _synchronize(self) -> None:
         while not self._is_at_end():
-            if self._previous().token_type == "SYMBOL" and self._previous().lexeme == ";":
+            if self.current > 0 and self._previous().token_type == "SYMBOL" and self._previous().lexeme == ";":
                 return
 
             if self._check("KEYWORD") and self._peek().lexeme in self.STATEMENT_START_KEYWORDS:
