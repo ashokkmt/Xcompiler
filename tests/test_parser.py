@@ -122,3 +122,34 @@ def test_missing_dict_colon_reports_error_without_hanging():
     assert any("Expected ':' between dictionary key and value" in err.message for err in errors)
     # Parser should recover and continue instead of looping forever.
     assert len(program.statements) >= 1
+
+
+def test_parser_attaches_source_locations_to_key_ast_nodes():
+    source = """
+    let x: int = 1;
+    x = x + 2;
+    print([10, 20][1]);
+    """
+
+    program, errors = _parse(source)
+
+    assert errors == []
+    declaration = program.statements[0]
+    assignment = program.statements[1]
+    print_stmt = program.statements[2]
+
+    assert isinstance(declaration, DeclarationStmt)
+    assert declaration.line > 0
+    assert declaration.column > 0
+
+    assert isinstance(assignment, AssignmentStmt)
+    assert assignment.line > 0
+    assert assignment.column > 0
+    assert isinstance(assignment.value, BinaryExpr)
+    assert assignment.value.line > 0
+    assert assignment.value.column > 0
+
+    assert isinstance(print_stmt, PrintStmt)
+    assert isinstance(print_stmt.expression, IndexExpr)
+    assert print_stmt.expression.line > 0
+    assert print_stmt.expression.column > 0

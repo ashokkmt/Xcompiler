@@ -44,3 +44,18 @@ def test_compile_source_stops_after_syntax_errors_for_invalid_dict_literal():
     assert all(d.phase in {"lexical", "syntax"} for d in result.diagnostics)
     assert result.tac == []
     assert result.program_output == []
+
+
+def test_compile_source_runtime_diagnostic_has_location_and_suggestion():
+    source = "let arr: array = [1]; print(arr[2]);"
+
+    result = compile_source(source)
+
+    runtime_errors = [d for d in result.diagnostics if d.phase == "runtime"]
+    assert len(runtime_errors) == 1
+
+    runtime_error = runtime_errors[0]
+    assert "Array index out of bounds" in runtime_error.message
+    assert runtime_error.suggestion
+    assert runtime_error.line > 0
+    assert runtime_error.column > 0

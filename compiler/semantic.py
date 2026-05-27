@@ -75,7 +75,11 @@ class SemanticAnalyzer:
         if isinstance(statement, IfStmt):
             condition_type = self._infer_expression_type(statement.condition)
             if condition_type != "bool" and condition_type != "error":
-                self._error("If condition must be of type bool")
+                self._error(
+                    "If condition must be of type bool",
+                    statement.condition.line,
+                    statement.condition.column,
+                )
             self._analyze_block(statement.then_branch)
             if statement.else_branch is not None:
                 self._analyze_block(statement.else_branch)
@@ -83,7 +87,11 @@ class SemanticAnalyzer:
         if isinstance(statement, WhileStmt):
             condition_type = self._infer_expression_type(statement.condition)
             if condition_type != "bool" and condition_type != "error":
-                self._error("While condition must be of type bool")
+                self._error(
+                    "While condition must be of type bool",
+                    statement.condition.line,
+                    statement.condition.column,
+                )
             self._analyze_block(statement.body)
             return
         if isinstance(statement, BlockStmt):
@@ -99,14 +107,20 @@ class SemanticAnalyzer:
     def _analyze_declaration(self, statement: DeclarationStmt) -> None:
         current_scope = self._scopes[-1]
         if statement.name in current_scope:
-            self._error(f"Redeclaration of variable '{statement.name}' in the same scope")
+            self._error(
+                f"Redeclaration of variable '{statement.name}' in the same scope",
+                statement.line,
+                statement.column,
+            )
             return
 
         value_type = self._infer_expression_type(statement.initializer)
         if not self._is_assignable(statement.var_type, value_type):
             self._error(
                 f"Type mismatch in declaration of '{statement.name}': "
-                f"expected {statement.var_type}, got {value_type}"
+                f"expected {statement.var_type}, got {value_type}",
+                statement.line,
+                statement.column,
             )
 
         current_scope[statement.name] = statement.var_type
@@ -115,7 +129,11 @@ class SemanticAnalyzer:
     def _analyze_assignment(self, statement: AssignmentStmt) -> None:
         target_type = self._lookup(statement.name)
         if target_type is None:
-            self._error(f"Use of undeclared variable '{statement.name}'")
+            self._error(
+                f"Use of undeclared variable '{statement.name}'",
+                statement.line,
+                statement.column,
+            )
             self._infer_expression_type(statement.value)
             return
 
@@ -123,7 +141,9 @@ class SemanticAnalyzer:
         if not self._is_assignable(target_type, value_type):
             self._error(
                 f"Type mismatch in assignment to '{statement.name}': "
-                f"expected {target_type}, got {value_type}"
+                f"expected {target_type}, got {value_type}",
+                statement.line,
+                statement.column,
             )
 
     def _infer_expression_type(self, expr) -> TypeName:
@@ -142,7 +162,11 @@ class SemanticAnalyzer:
         if isinstance(expr, IdentifierExpr):
             found = self._lookup(expr.name)
             if found is None:
-                self._error(f"Use of undeclared variable '{expr.name}'")
+                self._error(
+                    f"Use of undeclared variable '{expr.name}'",
+                    expr.line,
+                    expr.column,
+                )
                 return "error"
             return found  # type: ignore[return-value]
 
@@ -150,14 +174,36 @@ class SemanticAnalyzer:
             return self._infer_expression_type(expr.expression)
 
         if isinstance(expr, ArrayLiteralExpr):
+            element_types: List[TypeName] = []
             for element in expr.elements:
-                self._infer_expression_type(element)
+                element_types.append(self._infer_expression_type(element))
+
+            non_error_types = {t for t in element_types if t != "error"}
+            if len(non_error_types) > 1:
+                self._error(
+                    "Array literal elements must all have the same type",
+                    expr.line,
+                    expr.column,
+                )
+                return "error"
+
             return "array"
 
         if isinstance(expr, DictLiteralExpr):
+            key_types: List[TypeName] = []
             for entry in expr.entries:
-                self._infer_expression_type(entry.key)
+                key_types.append(self._infer_expression_type(entry.key))
                 self._infer_expression_type(entry.value)
+
+            non_error_key_types = {t for t in key_types if t != "error"}
+            if len(non_error_key_types) > 1:
+                self._error(
+                    "Dictionary literal keys must all have the same type",
+                    expr.line,
+                    expr.column,
+                )
+                return "error"
+
             return "dict"
 
         if isinstance(expr, IndexExpr):
@@ -165,28 +211,52 @@ class SemanticAnalyzer:
             index_type = self._infer_expression_type(expr.index)
             if target_type == "array":
                 if index_type not in {"int", "error"}:
-                    self._error("Array indexing requires int index")
+                    self._error(
+                        "Array indexing requires int index",
+                        expr.index.line,
+                        expr.index.column,
+                    )
                     return "error"
                 return "any"
             if target_type == "dict":
                 return "any"
             if target_type != "error":
-                self._error("Indexing requires array or dict target")
+                self._error(
+                    "Indexing requires array or dict target",
+                    expr.line,
+                    expr.column,
+                )
             return "error"
 
         if isinstance(expr, UnaryExpr):
             operand_type = self._infer_expression_type(expr.operand)
             if expr.operator == "!":
+                if operand_type == "any":
+                    return "bool"
                 if operand_type != "bool" and operand_type != "error":
-                    self._error("Logical '!' operator requires bool operand")
+                    self._error(
+                        "Logical '!' operator requires bool operand",
+                        expr.line,
+                        expr.column,
+                    )
                     return "error"
                 return "bool"
             if expr.operator == "-":
+                if operand_type == "any":
+                    return "any"
                 if operand_type not in {"int", "float", "error"}:
-                    self._error("Unary '-' operator requires numeric operand")
+                    self._error(
+                        "Unary '-' operator requires numeric operand",
+                        expr.line,
+                        expr.column,
+                    )
                     return "error"
                 return operand_type
-            self._error(f"Unsupported unary operator '{expr.operator}'")
+            self._error(
+                f"Unsupported unary operator '{expr.operator}'",
+                expr.line,
+                expr.column,
+            )
             return "error"
 
         if isinstance(expr, BinaryExpr):
@@ -195,6 +265,8 @@ class SemanticAnalyzer:
             op = expr.operator
 
             if op in {"+", "-", "*", "/"}:
+                if "any" in {left_type, right_type}:
+                    return "any"
                 if self._is_numeric(left_type) and self._is_numeric(right_type):
                     if op == "/":
                         return "float"
@@ -202,41 +274,63 @@ class SemanticAnalyzer:
                         return "float"
                     return "int"
                 if left_type != "error" and right_type != "error":
-                    self._error(f"Operator '{op}' requires numeric operands")
+                    self._error(
+                        f"Operator '{op}' requires numeric operands",
+                        expr.line,
+                        expr.column,
+                    )
                 return "error"
 
             if op == "%":
+                if "any" in {left_type, right_type}:
+                    return "any"
                 if left_type == "int" and right_type == "int":
                     return "int"
                 if left_type != "error" and right_type != "error":
-                    self._error("Operator '%' requires int operands")
+                    self._error("Operator '%' requires int operands", expr.line, expr.column)
                 return "error"
 
             if op in {"<", "<=", ">", ">="}:
+                if "any" in {left_type, right_type}:
+                    return "bool"
                 if self._is_numeric(left_type) and self._is_numeric(right_type):
                     return "bool"
                 if left_type != "error" and right_type != "error":
-                    self._error(f"Operator '{op}' requires numeric operands")
+                    self._error(
+                        f"Operator '{op}' requires numeric operands",
+                        expr.line,
+                        expr.column,
+                    )
                 return "error"
 
             if op in {"==", "!="}:
                 if self._types_compatible(left_type, right_type):
                     return "bool"
                 if left_type != "error" and right_type != "error":
-                    self._error(f"Cannot compare incompatible types: {left_type} and {right_type}")
+                    self._error(
+                        f"Cannot compare incompatible types: {left_type} and {right_type}",
+                        expr.line,
+                        expr.column,
+                    )
                 return "error"
 
             if op in {"&&", "||"}:
+                if "any" in {left_type, right_type}:
+                    return "bool"
                 if left_type == "bool" and right_type == "bool":
                     return "bool"
                 if left_type != "error" and right_type != "error":
-                    self._error(f"Operator '{op}' requires bool operands")
+                    self._error(
+                        f"Operator '{op}' requires bool operands",
+                        expr.line,
+                        expr.column,
+                    )
                 return "error"
 
-            self._error(f"Unsupported binary operator '{op}'")
+            self._error(f"Unsupported binary operator '{op}'", expr.line, expr.column)
             return "error"
 
-        self._error("Unsupported expression node")
+        self._error("Unsupported expression node", getattr(expr, "line", 0), getattr(expr, "column", 0))
         return "error"
 
     def _is_numeric(self, type_name: TypeName) -> bool:
@@ -244,6 +338,8 @@ class SemanticAnalyzer:
 
     def _types_compatible(self, left: TypeName, right: TypeName) -> bool:
         if "error" in {left, right}:
+            return True
+        if "any" in {left, right}:
             return True
         if left == right:
             return True
@@ -275,5 +371,4 @@ class SemanticAnalyzer:
         self._scopes.pop()
 
     def _error(self, message: str, line: int = 0, column: int = 0) -> None:
-        # Parser AST nodes currently do not include token locations, so semantic diagnostics use 0:0.
         self._errors.append(SemanticError(message, line, column))

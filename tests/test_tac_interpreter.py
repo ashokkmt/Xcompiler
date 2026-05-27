@@ -54,3 +54,47 @@ def test_executes_array_and_dictionary_index_prints():
 
     assert result.runtime_error is None
     assert result.output == ["2", "10"]
+
+
+def test_reports_array_index_out_of_bounds_with_suggestion_and_location():
+    result = _execute("let arr: array = [1, 2]; print(arr[5]);")
+
+    assert result.runtime_error is not None
+    assert "Array index out of bounds" in result.runtime_error
+    assert result.runtime_error_suggestion is not None
+    assert "bounds" in result.runtime_error_suggestion.lower()
+    assert result.runtime_error_line > 0
+    assert result.runtime_error_column > 0
+
+
+def test_reports_array_index_type_error_with_suggestion_and_location():
+    result = _execute('let arr: array = [1, 2]; print(arr["a"]);')
+
+    assert result.runtime_error is not None
+    assert "Array index must be integer" in result.runtime_error
+    assert result.runtime_error_suggestion is not None
+    assert "integer" in result.runtime_error_suggestion.lower()
+    assert result.runtime_error_line > 0
+    assert result.runtime_error_column > 0
+
+
+def test_reports_dictionary_key_not_found_with_suggestion_and_location():
+    result = _execute('let data: dict = {"a": 1}; print(data["missing"]);')
+
+    assert result.runtime_error is not None
+    assert "Dictionary key not found" in result.runtime_error
+    assert result.runtime_error_suggestion is not None
+    assert "key" in result.runtime_error_suggestion.lower()
+    assert result.runtime_error_line > 0
+    assert result.runtime_error_column > 0
+
+
+def test_reports_invalid_dictionary_key_access_with_suggestion_and_location():
+    result = _execute('let data: dict = {"a": 1}; print(data[[1]]);')
+
+    assert result.runtime_error is not None
+    assert "Invalid dictionary key access" in result.runtime_error
+    assert result.runtime_error_suggestion is not None
+    assert "hashable" in result.runtime_error_suggestion.lower()
+    assert result.runtime_error_line > 0
+    assert result.runtime_error_column > 0

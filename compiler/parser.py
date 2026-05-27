@@ -18,11 +18,15 @@ class ParserError:
 @dataclass(frozen=True)
 class Program:
     statements: List["Statement"]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class BlockStmt:
     statements: List["Statement"]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
@@ -30,17 +34,23 @@ class DeclarationStmt:
     name: str
     var_type: str
     initializer: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class AssignmentStmt:
     name: str
     value: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class PrintStmt:
     expression: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
@@ -48,12 +58,16 @@ class IfStmt:
     condition: "Expression"
     then_branch: BlockStmt
     else_branch: Optional[BlockStmt]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class WhileStmt:
     condition: "Expression"
     body: BlockStmt
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
@@ -61,49 +75,67 @@ class BinaryExpr:
     left: "Expression"
     operator: str
     right: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class UnaryExpr:
     operator: str
     operand: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class LiteralExpr:
     value: Union[int, float, bool, str]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class IdentifierExpr:
     name: str
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class GroupingExpr:
     expression: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class ArrayLiteralExpr:
     elements: List["Expression"]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class DictEntryExpr:
     key: "Expression"
     value: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class DictLiteralExpr:
     entries: List[DictEntryExpr]
+    line: int = 0
+    column: int = 0
 
 
 @dataclass(frozen=True)
 class IndexExpr:
     target: "Expression"
     index: "Expression"
+    line: int = 0
+    column: int = 0
 
 
 Statement = Union[BlockStmt, DeclarationStmt, AssignmentStmt, PrintStmt, IfStmt, WhileStmt]
@@ -151,7 +183,13 @@ class Parser:
             if stmt is not None:
                 statements.append(stmt)
 
-        return Program(statements), self.errors
+        if statements:
+            program_line, program_col = self._node_location(statements[0])
+        else:
+            eof = self._peek()
+            program_line, program_col = eof.line, eof.column
+
+        return Program(statements, line=program_line, column=program_col), self.errors
 
     def _parse_statement_with_recovery(self) -> Optional[Statement]:
         start_index = self.current
@@ -183,6 +221,7 @@ class Parser:
         raise _ParseAbort()
 
     def _parse_declaration_statement(self) -> DeclarationStmt:
+        start_token = self._previous()
         name = self._consume("IDENTIFIER", "Expected variable name after 'let'")
         self._consume_symbol(":", "Expected ':' after variable name")
 
@@ -195,23 +234,31 @@ class Parser:
         initializer = self._parse_expression()
         self._consume_symbol(";", "Expected ';' after declaration")
 
-        return DeclarationStmt(name.lexeme, type_token.lexeme, initializer)
+        return DeclarationStmt(
+            name.lexeme,
+            type_token.lexeme,
+            initializer,
+            line=start_token.line,
+            column=start_token.column,
+        )
 
     def _parse_assignment_statement(self) -> AssignmentStmt:
         name = self._consume("IDENTIFIER", "Expected identifier at start of assignment")
         self._consume_operator("=", "Expected '=' in assignment")
         value = self._parse_expression()
         self._consume_symbol(";", "Expected ';' after assignment")
-        return AssignmentStmt(name.lexeme, value)
+        return AssignmentStmt(name.lexeme, value, line=name.line, column=name.column)
 
     def _parse_print_statement(self) -> PrintStmt:
+        start_token = self._previous()
         self._consume_symbol("(", "Expected '(' after 'print'")
         expr = self._parse_expression()
         self._consume_symbol(")", "Expected ')' after print expression")
         self._consume_symbol(";", "Expected ';' after print statement")
-        return PrintStmt(expr)
+        return PrintStmt(expr, line=start_token.line, column=start_token.column)
 
     def _parse_if_statement(self) -> IfStmt:
+        start_token = self._previous()
         self._consume_symbol("(", "Expected '(' after 'if'")
         condition = self._parse_expression()
         self._consume_symbol(")", "Expected ')' after if condition")
@@ -221,20 +268,28 @@ class Parser:
         if self._match_keyword("else"):
             else_branch = self._parse_required_block("Expected '{' to start else block")
 
-        return IfStmt(condition, then_branch, else_branch)
+        return IfStmt(
+            condition,
+            then_branch,
+            else_branch,
+            line=start_token.line,
+            column=start_token.column,
+        )
 
     def _parse_while_statement(self) -> WhileStmt:
+        start_token = self._previous()
         self._consume_symbol("(", "Expected '(' after 'while'")
         condition = self._parse_expression()
         self._consume_symbol(")", "Expected ')' after while condition")
         body = self._parse_required_block("Expected '{' to start while block")
-        return WhileStmt(condition, body)
+        return WhileStmt(condition, body, line=start_token.line, column=start_token.column)
 
     def _parse_required_block(self, error_message: str) -> BlockStmt:
         self._consume_symbol("{", error_message)
         return self._parse_block_statement()
 
     def _parse_block_statement(self) -> BlockStmt:
+        start_token = self._previous()
         statements: List[Statement] = []
 
         while not self._check_symbol("}") and not self._is_at_end():
@@ -243,7 +298,7 @@ class Parser:
                 statements.append(stmt)
 
         self._consume_symbol("}", "Expected '}' to close block")
-        return BlockStmt(statements)
+        return BlockStmt(statements, line=start_token.line, column=start_token.column)
 
     def _parse_expression(self) -> Expression:
         return self._parse_logical_or()
@@ -251,81 +306,136 @@ class Parser:
     def _parse_logical_or(self) -> Expression:
         expr = self._parse_logical_and()
         while self._match_operator("||"):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             right = self._parse_logical_and()
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(
+                expr,
+                operator,
+                right,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return expr
 
     def _parse_logical_and(self) -> Expression:
         expr = self._parse_equality()
         while self._match_operator("&&"):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             right = self._parse_equality()
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(
+                expr,
+                operator,
+                right,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return expr
 
     def _parse_equality(self) -> Expression:
         expr = self._parse_comparison()
         while self._match_operator("==", "!="):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             right = self._parse_comparison()
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(
+                expr,
+                operator,
+                right,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return expr
 
     def _parse_comparison(self) -> Expression:
         expr = self._parse_term()
         while self._match_operator("<", "<=", ">", ">="):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             right = self._parse_term()
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(
+                expr,
+                operator,
+                right,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return expr
 
     def _parse_term(self) -> Expression:
         expr = self._parse_factor()
         while self._match_operator("+", "-"):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             right = self._parse_factor()
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(
+                expr,
+                operator,
+                right,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return expr
 
     def _parse_factor(self) -> Expression:
         expr = self._parse_unary()
         while self._match_operator("*", "/", "%"):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             right = self._parse_unary()
-            expr = BinaryExpr(expr, operator, right)
+            expr = BinaryExpr(
+                expr,
+                operator,
+                right,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return expr
 
     def _parse_unary(self) -> Expression:
         if self._match_operator("!", "-"):
-            operator = self._previous().lexeme
+            operator_token = self._previous()
+            operator = operator_token.lexeme
             operand = self._parse_unary()
-            return UnaryExpr(operator, operand)
+            return UnaryExpr(
+                operator,
+                operand,
+                line=operator_token.line,
+                column=operator_token.column,
+            )
         return self._parse_postfix()
 
     def _parse_postfix(self) -> Expression:
         expr = self._parse_primary()
         while self._match_symbol("["):
+            start_token = self._previous()
             index = self._parse_expression()
             self._consume_symbol("]", "Expected ']' after index expression")
-            expr = IndexExpr(expr, index)
+            expr = IndexExpr(expr, index, line=start_token.line, column=start_token.column)
         return expr
 
     def _parse_primary(self) -> Expression:
         if self._match("INT_LITERAL"):
-            return LiteralExpr(int(self._previous().lexeme))
+            token = self._previous()
+            return LiteralExpr(int(token.lexeme), line=token.line, column=token.column)
         if self._match("FLOAT_LITERAL"):
-            return LiteralExpr(float(self._previous().lexeme))
+            token = self._previous()
+            return LiteralExpr(float(token.lexeme), line=token.line, column=token.column)
         if self._match("STRING_LITERAL"):
-            return LiteralExpr(self._previous().lexeme)
+            token = self._previous()
+            return LiteralExpr(token.lexeme, line=token.line, column=token.column)
         if self._match("BOOL_LITERAL"):
-            return LiteralExpr(self._previous().lexeme == "true")
+            token = self._previous()
+            return LiteralExpr(token.lexeme == "true", line=token.line, column=token.column)
         if self._match("IDENTIFIER"):
-            return IdentifierExpr(self._previous().lexeme)
+            token = self._previous()
+            return IdentifierExpr(token.lexeme, line=token.line, column=token.column)
         if self._match_symbol("("):
+            start_token = self._previous()
             expr = self._parse_expression()
             self._consume_symbol(")", "Expected ')' after grouped expression")
-            return GroupingExpr(expr)
+            return GroupingExpr(expr, line=start_token.line, column=start_token.column)
         if self._match_symbol("["):
             return self._parse_array_literal()
         if self._match_symbol("{"):
@@ -336,6 +446,7 @@ class Parser:
         raise _ParseAbort()
 
     def _parse_array_literal(self) -> ArrayLiteralExpr:
+        start_token = self._previous()
         elements: List[Expression] = []
 
         if not self._check_symbol("]"):
@@ -344,9 +455,10 @@ class Parser:
                 elements.append(self._parse_expression())
 
         self._consume_symbol("]", "Expected ']' after array literal")
-        return ArrayLiteralExpr(elements)
+        return ArrayLiteralExpr(elements, line=start_token.line, column=start_token.column)
 
     def _parse_dict_literal(self) -> DictLiteralExpr:
+        start_token = self._previous()
         entries: List[DictEntryExpr] = []
 
         if not self._check_symbol("}"):
@@ -355,13 +467,14 @@ class Parser:
                 entries.append(self._parse_dict_entry())
 
         self._consume_symbol("}", "Expected '}' after dictionary literal")
-        return DictLiteralExpr(entries)
+        return DictLiteralExpr(entries, line=start_token.line, column=start_token.column)
 
     def _parse_dict_entry(self) -> DictEntryExpr:
         key_expr = self._parse_expression()
         self._consume_symbol(":", "Expected ':' between dictionary key and value")
         value_expr = self._parse_expression()
-        return DictEntryExpr(key_expr, value_expr)
+        line, column = self._node_location(key_expr)
+        return DictEntryExpr(key_expr, value_expr, line=line, column=column)
 
     def _synchronize(self) -> None:
         while not self._is_at_end():
@@ -452,3 +565,6 @@ class Parser:
 
     def _error(self, token: Token, message: str) -> None:
         self.errors.append(ParserError(message, token.line, token.column))
+
+    def _node_location(self, node) -> Tuple[int, int]:
+        return getattr(node, "line", 0), getattr(node, "column", 0)

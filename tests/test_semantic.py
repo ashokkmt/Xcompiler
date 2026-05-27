@@ -106,3 +106,27 @@ def test_valid_array_and_dictionary_indexing_has_no_semantic_errors():
     names = [s.name for s in symbols]
     assert "arr" in names
     assert "data" in names
+
+
+def test_reports_array_literal_type_inconsistency():
+    source = 'let arr: array = [1, "two", 3];'
+
+    _symbols, errors = _analyze(source)
+
+    assert len(errors) >= 1
+    assert any("Array literal elements must all have the same type" in e.message for e in errors)
+    first = next(e for e in errors if "Array literal elements must all have the same type" in e.message)
+    assert first.line > 0
+    assert first.column > 0
+
+
+def test_reports_dictionary_key_type_inconsistency():
+    source = 'let data: dict = {"a": 1, 2: 3};'
+
+    _symbols, errors = _analyze(source)
+
+    assert len(errors) >= 1
+    assert any("Dictionary literal keys must all have the same type" in e.message for e in errors)
+    first = next(e for e in errors if "Dictionary literal keys must all have the same type" in e.message)
+    assert first.line > 0
+    assert first.column > 0

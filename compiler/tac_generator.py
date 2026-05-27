@@ -31,6 +31,8 @@ class TACInstruction:
     arg1: Optional[str] = None
     arg2: Optional[str] = None
     result: Optional[str] = None
+    line: int = 0
+    column: int = 0
 
 
 class TACGenerator:
@@ -55,17 +57,37 @@ class TACGenerator:
     def _emit_statement(self, statement: Statement) -> None:
         if isinstance(statement, DeclarationStmt):
             value = self._emit_expression(statement.initializer)
-            self.instructions.append(TACInstruction("ASSIGN", value, None, statement.name))
+            self.instructions.append(
+                TACInstruction(
+                    "ASSIGN",
+                    value,
+                    None,
+                    statement.name,
+                    line=statement.line,
+                    column=statement.column,
+                )
+            )
             return
 
         if isinstance(statement, AssignmentStmt):
             value = self._emit_expression(statement.value)
-            self.instructions.append(TACInstruction("ASSIGN", value, None, statement.name))
+            self.instructions.append(
+                TACInstruction(
+                    "ASSIGN",
+                    value,
+                    None,
+                    statement.name,
+                    line=statement.line,
+                    column=statement.column,
+                )
+            )
             return
 
         if isinstance(statement, PrintStmt):
             value = self._emit_expression(statement.expression)
-            self.instructions.append(TACInstruction("PRINT", value))
+            self.instructions.append(
+                TACInstruction("PRINT", value, line=statement.line, column=statement.column)
+            )
             return
 
         if isinstance(statement, IfStmt):
@@ -86,34 +108,106 @@ class TACGenerator:
         else_label = self._new_label()
         end_label = self._new_label()
 
-        self.instructions.append(TACInstruction("IF_FALSE_GOTO", condition, None, else_label))
+        self.instructions.append(
+            TACInstruction(
+                "IF_FALSE_GOTO",
+                condition,
+                None,
+                else_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
 
         for inner in statement.then_branch.statements:
             self._emit_statement(inner)
 
-        self.instructions.append(TACInstruction("GOTO", None, None, end_label))
-        self.instructions.append(TACInstruction("LABEL", None, None, else_label))
+        self.instructions.append(
+            TACInstruction(
+                "GOTO",
+                None,
+                None,
+                end_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
+        self.instructions.append(
+            TACInstruction(
+                "LABEL",
+                None,
+                None,
+                else_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
 
         if statement.else_branch is not None:
             for inner in statement.else_branch.statements:
                 self._emit_statement(inner)
 
-        self.instructions.append(TACInstruction("LABEL", None, None, end_label))
+        self.instructions.append(
+            TACInstruction(
+                "LABEL",
+                None,
+                None,
+                end_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
 
     def _emit_while(self, statement: WhileStmt) -> None:
         start_label = self._new_label()
         end_label = self._new_label()
 
-        self.instructions.append(TACInstruction("LABEL", None, None, start_label))
+        self.instructions.append(
+            TACInstruction(
+                "LABEL",
+                None,
+                None,
+                start_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
 
         condition = self._emit_expression(statement.condition)
-        self.instructions.append(TACInstruction("IF_FALSE_GOTO", condition, None, end_label))
+        self.instructions.append(
+            TACInstruction(
+                "IF_FALSE_GOTO",
+                condition,
+                None,
+                end_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
 
         for inner in statement.body.statements:
             self._emit_statement(inner)
 
-        self.instructions.append(TACInstruction("GOTO", None, None, start_label))
-        self.instructions.append(TACInstruction("LABEL", None, None, end_label))
+        self.instructions.append(
+            TACInstruction(
+                "GOTO",
+                None,
+                None,
+                start_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
+        self.instructions.append(
+            TACInstruction(
+                "LABEL",
+                None,
+                None,
+                end_label,
+                line=statement.line,
+                column=statement.column,
+            )
+        )
 
     def _emit_expression(self, expression) -> str:
         if isinstance(expression, LiteralExpr):
@@ -127,40 +221,103 @@ class TACGenerator:
 
         if isinstance(expression, ArrayLiteralExpr):
             target = self._new_temp()
-            self.instructions.append(TACInstruction("ARRAY_NEW", None, None, target))
+            self.instructions.append(
+                TACInstruction(
+                    "ARRAY_NEW",
+                    None,
+                    None,
+                    target,
+                    line=expression.line,
+                    column=expression.column,
+                )
+            )
             for element in expression.elements:
                 value = self._emit_expression(element)
-                self.instructions.append(TACInstruction("ARRAY_APPEND", target, value, target))
+                self.instructions.append(
+                    TACInstruction(
+                        "ARRAY_APPEND",
+                        target,
+                        value,
+                        target,
+                        line=element.line,
+                        column=element.column,
+                    )
+                )
             return target
 
         if isinstance(expression, DictLiteralExpr):
             target = self._new_temp()
-            self.instructions.append(TACInstruction("DICT_NEW", None, None, target))
+            self.instructions.append(
+                TACInstruction(
+                    "DICT_NEW",
+                    None,
+                    None,
+                    target,
+                    line=expression.line,
+                    column=expression.column,
+                )
+            )
             for entry in expression.entries:
                 key = self._emit_expression(entry.key)
                 value = self._emit_expression(entry.value)
-                self.instructions.append(TACInstruction("DICT_SET", key, value, target))
+                self.instructions.append(
+                    TACInstruction(
+                        "DICT_SET",
+                        key,
+                        value,
+                        target,
+                        line=entry.line,
+                        column=entry.column,
+                    )
+                )
             return target
 
         if isinstance(expression, IndexExpr):
             target = self._new_temp()
             collection = self._emit_expression(expression.target)
             index = self._emit_expression(expression.index)
-            self.instructions.append(TACInstruction("INDEX_GET", collection, index, target))
+            self.instructions.append(
+                TACInstruction(
+                    "INDEX_GET",
+                    collection,
+                    index,
+                    target,
+                    line=expression.line,
+                    column=expression.column,
+                )
+            )
             return target
 
         if isinstance(expression, UnaryExpr):
             operand = self._emit_expression(expression.operand)
             target = self._new_temp()
             op = "NEG" if expression.operator == "-" else "NOT"
-            self.instructions.append(TACInstruction(op, operand, None, target))
+            self.instructions.append(
+                TACInstruction(
+                    op,
+                    operand,
+                    None,
+                    target,
+                    line=expression.line,
+                    column=expression.column,
+                )
+            )
             return target
 
         if isinstance(expression, BinaryExpr):
             left = self._emit_expression(expression.left)
             right = self._emit_expression(expression.right)
             target = self._new_temp()
-            self.instructions.append(TACInstruction(expression.operator, left, right, target))
+            self.instructions.append(
+                TACInstruction(
+                    expression.operator,
+                    left,
+                    right,
+                    target,
+                    line=expression.line,
+                    column=expression.column,
+                )
+            )
             return target
 
         raise ValueError("Unsupported expression node for TAC generation")

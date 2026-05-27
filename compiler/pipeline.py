@@ -50,9 +50,10 @@ def compile_source(source: str) -> CompileOutput:
                 phase="runtime",
                 severity="error",
                 message=runtime.runtime_error,
-                suggestion="Review TAC operations and runtime values to fix execution errors.",
-                line=0,
-                column=0,
+                suggestion=runtime.runtime_error_suggestion
+                or "Review TAC operations and runtime values to fix execution errors.",
+                line=runtime.runtime_error_line,
+                column=runtime.runtime_error_column,
             )
         )
 

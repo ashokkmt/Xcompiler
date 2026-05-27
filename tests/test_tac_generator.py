@@ -86,3 +86,15 @@ def test_generates_tac_for_array_dict_and_index_access():
     assert "DICT_SET" in ops
     assert "INDEX_GET" in ops
     assert ops.count("PRINT") == 2
+
+
+def test_generated_tac_instructions_include_source_locations():
+    source = """
+    let x: int = 1 + 2;
+    print(x);
+    """
+    tac = _generate_tac(source)
+
+    assert len(tac) > 0
+    assert all(ins.line > 0 for ins in tac)
+    assert all(ins.column > 0 for ins in tac)
