@@ -5,7 +5,6 @@ docs/*
 temp
 __pycache__
 test.md
-how_to_run.md
 workflow.md
 code_explanation.md
 feature_audit.md
